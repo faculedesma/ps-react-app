@@ -5,6 +5,7 @@ import * as courseActions from '../../actions/courseActions';
 import CourseForm from './CourseForm';
 import { browserHistory } from 'react-router';
 import { debug } from 'util';
+import toastr from 'toastr';
 
 class ManageCoursePage extends React.Component {
   constructor(props, context) {
@@ -12,7 +13,8 @@ class ManageCoursePage extends React.Component {
 
     this.state = {
       course: Object.assign({}, this.props.course),
-      errors: {}
+      errors: {},
+      saving: false
     };
 
     this.updateCourseState = this.updateCourseState.bind(this);
@@ -22,7 +24,7 @@ class ManageCoursePage extends React.Component {
   componentWillReceiveProps(nextProps) {
     if (this.props.course.id != nextProps.course.id) {
       // Necesary to populate form when existing course id loaded directly
-      this.setState({course: Object.assign({}, nextProps.course)});
+      this.setState({ course: Object.assign({}, nextProps.course) });
     }
   }
 
@@ -30,25 +32,36 @@ class ManageCoursePage extends React.Component {
     const field = event.target.name;
     let course = Object.assign({}, this.state.course);
     course[field] = event.target.value;
-    return this.setState({course: course});
+    return this.setState({ course: course });
   }
 
   saveCourse(event) {
     event.preventDefault();
-    this.props.actions.saveCourse(this.state.course);
-    browserHistory.push('/courses');
-    //this.context.router.push('/courses');
+    this.setState({saving: true});
+    this.props.actions.saveCourse(this.state.course)
+      .then(() => this.redirect())
+      .catch(error => {
+        toastr.error(error);
+        this.setState({saving: false});
+      });
   }
 
-  render () {
+  redirect() {
+    this.setState({saving: false});
+    toastr.success('Course saved')
+    browserHistory.push('/courses');
+  }
+
+  render() {
     return (
       <div>
-        <CourseForm 
+        <CourseForm
           allAuthors={this.props.authors}
           onChange={this.updateCourseState}
           onSave={this.saveCourse}
           course={this.state.course}
-          errors={this.state.errors} 
+          errors={this.state.errors}
+          saving={this.state.saving}
         />
       </div>
     );
@@ -74,9 +87,9 @@ function getCourseById(courses, id) {
 function mapStateToProps(state, ownProps) {
   const courseId = ownProps.params.id; // from  the path `/course/:id`
 
-  let course = {id: '', watchHref: '', title: '', authorId: '', lenght: '', category: ''};
+  let course = { id: '', watchHref: '', title: '', authorId: '', lenght: '', category: '' };
 
-  if(courseId && state.courses.length > 0) {
+  if (courseId && state.courses.length > 0) {
     course = getCourseById(state.courses, courseId);
   }
 
@@ -86,7 +99,7 @@ function mapStateToProps(state, ownProps) {
       text: author.firstName + '' + author.lastName
     };
   });
-  
+
   return {
     course: course,
     authors: authorsFormattedForDropdown
